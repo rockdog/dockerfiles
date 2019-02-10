@@ -4,12 +4,16 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
     bzip2 \
     ca-certificates \
+    curl \
+    git \
+    gnupg \
     libffi-dev \
     libgdbm3 \
     libjemalloc-dev \
     libssl-dev \
     libyaml-dev \
     procps \
+    wget \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,7 +48,6 @@ RUN set -ex \
     libxslt-dev \
     make \
     ruby \
-    wget \
     xz-utils \
     ' \
     && apt-get update \
@@ -89,8 +92,12 @@ RUN set -ex \
     && gem install bundler --version "$BUNDLER_VERSION" --force \
     && rm -r /root/.gem/ \
     \
+    && curl -sL https://deb.nodesource.com/setup_10.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    \
     # rough smoke test
-    && ruby --version && gem --version && bundle --version
+    && ruby --version && gem --version && bundle --version && nodejs --version
 
 # install things globally, for great justice
 # and don't create ".bundle" in all our apps
