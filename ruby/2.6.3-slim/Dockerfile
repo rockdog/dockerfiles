@@ -1,4 +1,4 @@
-FROM debian:stretch
+FROM debian:stretch-slim
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -10,6 +10,7 @@ RUN apt-get update \
     libffi-dev \
     libgdbm3 \
     libjemalloc-dev \
+    libgmp-dev \
     libssl-dev \
     libyaml-dev \
     procps \
@@ -25,16 +26,17 @@ RUN mkdir -p /usr/local/etc \
     } >> /usr/local/etc/gemrc
 
 ENV RUBY_MAJOR 2.6
-ENV RUBY_VERSION 2.6.1
-ENV RUBY_DOWNLOAD_SHA256 17024fb7bb203d9cf7a5a42c78ff6ce77140f9d083676044a7db67f1e5191cb8
-ENV RUBYGEMS_VERSION 3.0.2
-ENV BUNDLER_VERSION 2.0.1
+ENV RUBY_VERSION 2.6.3
+ENV RUBY_DOWNLOAD_SHA256 11a83f85c03d3f0fc9b8a9b6cad1b2674f26c5aaa43ba858d4b0fcc2b54171e1
+ENV RUBYGEMS_VERSION 3.0.4
+ENV BUNDLER_VERSION 2.0.2
 
 # some of ruby's build scripts are written in ruby
 #   we purge system ruby later to make sure our final image uses what we just built
 RUN set -ex \
     \
-    && buildDeps=' \
+    && savedAptMark="$(apt-mark showmanual)" \
+    && apt-get update && apt-get install -y --no-install-recommends \
     autoconf \
     bison \
     dpkg-dev \
@@ -48,18 +50,16 @@ RUN set -ex \
     libxslt-dev \
     make \
     ruby \
+    wget \
     xz-utils \
-    ' \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends $buildDeps \
     && rm -rf /var/lib/apt/lists/* \
     \
-    && wget -O ruby.tar.gz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.gz" \
-    && echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.gz" | sha256sum -c - \
+    && wget -O ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz" \
+    && echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum -c - \
     \
     && mkdir -p /usr/src/ruby \
-    && tar -xvzf ruby.tar.gz -C /usr/src/ruby --strip-components=1 \
-    && rm ruby.tar.gz \
+    && tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1 \
+    && rm ruby.tar.xz \
     \
     && cd /usr/src/ruby \
     \
@@ -82,10 +82,17 @@ RUN set -ex \
     && make -j "$(nproc)" \
     && make install \
     \
-    && dpkg-query --show --showformat '${package}\n' \
-    | grep -P '^libreadline\d+$' \
-    | xargs apt-mark manual \
-    && apt-get purge -y --auto-remove $buildDeps \
+    && apt-mark auto '.*' > /dev/null \
+    && apt-mark manual $savedAptMark \
+    && find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
+    | awk '/=>/ { print $(NF-1) }' \
+    | sort -u \
+    | xargs -r dpkg-query --search \
+    | cut -d: -f1 \
+    | sort -u \
+    | xargs -r apt-mark manual \
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+    \
     && cd / \
     && rm -r /usr/src/ruby \
     \
