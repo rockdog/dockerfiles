@@ -114,7 +114,8 @@ RUN set -eux; \
     # rough smoke test
     ruby --version; \
     gem --version; \
-    bundle --version
+    bundle --version; \
+    nodejs --version
 
 # don't create ".bundle" in all our apps
 ENV GEM_HOME /usr/local/bundle
