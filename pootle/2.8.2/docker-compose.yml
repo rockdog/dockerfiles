@@ -1,0 +1,34 @@
+version: '3.7'
+
+services:
+  pootle:
+    build:
+      context: .
+    depends_on:
+      - worker
+      - redis
+    volumes:
+      - pootle-db:/home/app/pootle/db
+      - pootle-log:/home/app/pootle/log
+      - pootle-translations:/home/app/pootle/translations
+    environment:
+      SECRET_KEY:
+    ports:
+      - 8000:8000
+
+  worker:
+    build:
+      context: .
+    depends_on:
+      - redis
+    environment:
+      SECRET_KEY:
+    command: ["venv/bin/pootle", "rqworker", "--config=pootle.conf"]
+
+  redis:
+    image: redis
+
+volumes:
+  pootle-db:
+  pootle-log:
+  pootle-translations:
